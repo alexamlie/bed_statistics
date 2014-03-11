@@ -74,8 +74,6 @@ def compute_statistics(reffile, bedfile, output):
                 # lengthbool = int(curpkdata[bed_coords['end']]) >= int(genedata[ref_coords['txStart']]) and int(curpkdata[bed_coords['start']]) <= int(genedata[ref_coords['txEnd']])
                 chrombool = curpkdata[bed_coords['chrom']] == genedata[ref_coords['chrom']]
                 strandbool = curpkdata[bed_coords['strand']] == genedata[ref_coords['strand']] 
-
-            print "Curpk number currently", len(curpks)
                                 
             # now we have all the possible overlapping peaks in the curpks list
             exons_covered = 0 # track the number of exons covered
