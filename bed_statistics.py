@@ -26,8 +26,9 @@ def compute_statistics(reffile, bedfile, output):
         # exonic bases hit, number of exonic bases covered, same 4 for introns, total bases
         # covered, proportion of total bases covered, and total number of bases
         stats = ('refseq', 'symbol', 'coveredExons', 'totalExons', 'propExonBases',
-        'exonBasesCovered', 'coveredIntrons', 'totalIntrons', 'propIntronBases',
-        'intronBasesCovered', 'totalBasesCovered', 'propBasesCovered', 'totalBases')
+        'exonBasesCovered', 'exonicHits', 'coveredIntrons', 'totalIntrons', 'propIntronBases',
+        'intronBasesCovered', 'intronicHits', 'totalBasesCovered', 'propBasesCovered',
+        'totalBases')
         outfile.write("\t".join(stats)+"\n") # write the header
 
         # we don't have to parse any of the refseq or bed file lines because we assume
@@ -55,28 +56,34 @@ def compute_statistics(reffile, bedfile, output):
                 pk = curpks[i]
                 # if we end before the gene starts, are on the wrong chromosome, or the wrong
                 # strand, we no longer consider the peak
-                if ( int(pk[bed_coords['end']]) < int(genedata[ref_coords['txStart']]) ) or (pk[bed_coords['chrom']] != genedata[ref_coords['chrom']]) or (pk[bed_coords['strand']] != genedata[ref_coords['strand']]):
+                # ( int(pk[bed_coords['end']]) < int(genedata[ref_coords['txStart']]) ) or
+                if (pk[bed_coords['chrom']] != genedata[ref_coords['chrom']]) or (pk[bed_coords['strand']] != genedata[ref_coords['strand']]):
                     curpks.pop(i) # remove this peak
 
             # now, we need to add all the possible next peaks that might match
             # we add peaks until we violate one of the conditions seen above
             # also, make sure that we haven't finished reading through the file
-            lengthbool = int(curpkdata[bed_coords['end']]) >= int(genedata[ref_coords['txStart']]) and int(curpkdata[bed_coords['end']]) <= int(genedata[ref_coords['txEnd']])
+            # lengthbool = int(curpkdata[bed_coords['end']]) >= int(genedata[ref_coords['txStart']]) and int(curpkdata[bed_coords['start']]) <= int(genedata[ref_coords['txEnd']])
             chrombool = curpkdata[bed_coords['chrom']] == genedata[ref_coords['chrom']]
             strandbool = curpkdata[bed_coords['strand']] == genedata[ref_coords['strand']] 
-            while curpk and lengthbool and chrombool and strandbool:
+            # while curpk and lengthbool and chrombool and strandbool:
+            while curpk and chrombool and strandbool:
                 curpks.append(curpkdata) # add the current peak
                 curpk = bedpeaks.readline().strip() # get the next peak to check
                 curpkdata = curpk.split("\t") # split it to get its juicy data
-                lengthbool = int(curpkdata[bed_coords['end']]) >= int(genedata[ref_coords['txStart']]) and int(curpkdata[bed_coords['end']]) <= int(genedata[ref_coords['txEnd']])
+                # lengthbool = int(curpkdata[bed_coords['end']]) >= int(genedata[ref_coords['txStart']]) and int(curpkdata[bed_coords['start']]) <= int(genedata[ref_coords['txEnd']])
                 chrombool = curpkdata[bed_coords['chrom']] == genedata[ref_coords['chrom']]
                 strandbool = curpkdata[bed_coords['strand']] == genedata[ref_coords['strand']] 
-                
+
+            print "Curpk number currently", len(curpks)
+                                
             # now we have all the possible overlapping peaks in the curpks list
             exons_covered = 0 # track the number of exons covered
             exonbases = 0 # track the number of exonic bases covered
+            exonhits = 0 # track the number of peaks overlapping exons
             introns_covered = 0 # track the number of introns covered
             intronbases = 0 # track the number of intronic bases covered
+            intronhits = 0 # track the number of peaks overlapping introns
 
             # to go through the windows of the gene (introns and exons), we need to make them
             # into lists. skips the last character because it's a comma
@@ -110,14 +117,15 @@ def compute_statistics(reffile, bedfile, output):
                     # first figure out if we've gone too far past this exon, to avoid
                     # unecessary looping
                     if int(pk[bed_coords['start']]) > end:
-                        break
+                        continue # try checking more peaks?
                     # then check if this peak can even overlap (we have to do this to try
                     # to optimize because we only remove peaks from curpks at each gene)
                     if int(pk[bed_coords['end']]) < start:
                         continue # skip this peak
                     # if we reach this point, then our peak covers at least part of this exon
                     covered = True
-
+                    exonhits += 1 # add another exonic peak
+                    
                     # now compute the coverage
                     interval = [max(start, int(pk[bed_coords["start"]])), min(end, int(pk[bed_coords["end"]]))]
                     # check if this interval overlaps with any in the list we have so far
@@ -147,8 +155,9 @@ def compute_statistics(reffile, bedfile, output):
             # calculate the proportion of exonic bases covered
             exon_prop = (float(exonbases) / float(sum([end-start for (end, start) in zip(exonends, exonstarts)]))) if exonbases > 0 else 0
             # add the info to the output string: number of exons covered, total exons
-            # proportion of exonic bases, and number of exonic bases covered
-            outstring = "\t".join([outstring, str(exons_covered), str(len(exonstarts)), str(exon_prop), str(exonbases)])
+            # proportion of exonic bases, number of exonic bases covered, and number of exonic
+            # peaks
+            outstring = "\t".join([outstring, str(exons_covered), str(len(exonstarts)), str(exon_prop), str(exonbases), str(exonhits)])
 
             # loop through introns now
             for i in range(len(intronstarts)):
@@ -167,7 +176,8 @@ def compute_statistics(reffile, bedfile, output):
                         continue # skip this peak
                     # if we reach this point, then our peak covers at least part of this intron
                     covered = True
-
+                    intronhits += 1 # add another intronic peak
+                    
                     # now compute the coverage
                     interval = [max(start, int(pk[bed_coords["start"]])), min(end, int(pk[bed_coords["end"]]))]
                     # check if this interval overlaps with any in the list we have so far
@@ -199,8 +209,8 @@ def compute_statistics(reffile, bedfile, output):
             # calculate the proportion of intronic bases covered
             intron_prop = (float(intronbases) / float(sum([end-start for (end, start) in zip(intronends, intronstarts)]))) if intronbases > 0 else 0
             # add the info to the output string: number of introns covered, total introns
-            # proportion of intronic bases, and number of intronic bases covered
-            outstring = "\t".join([outstring, str(introns_covered), str(len(intronstarts)), str(intron_prop), str(intronbases)])
+            # proportion of intronic bases, number of intronic bases covered, # of intronic peaks
+            outstring = "\t".join([outstring, str(introns_covered), str(len(intronstarts)), str(intron_prop), str(intronbases), str(intronhits)])
 
             # finally, add the remaining statistics to the output string and write it
             # calculate the total proportion of bases covered
