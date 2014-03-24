@@ -8,7 +8,7 @@ Only works with Python 2.7 and above, because of the with open, open, open const
 
 import argparse, sys, os
 
-def compute_statistics(reffile, bedfile, output):
+def compute_statistics(reffile, bedfile, output, log):
     # define convenience dicts to access the refseq file and the bedfile
     ref_coords = {'bin': 0, 'cdsEnd': 7, 'cdsEndStat': 14, 'cdsStart': 6, 'cdsStartStat': 13,
  'chrom': 2, 'exonCount': 8, 'exonEnds': 10, 'exonFrames': 15, 'exonStarts': 9, 'name': 1,
@@ -20,15 +20,15 @@ def compute_statistics(reffile, bedfile, output):
     bed_coords["end"] = 2
     bed_coords["strand"] = 5
     
-    with open(reffile, 'r') as refseq, open(bedfile, 'r') as bedpeaks, open(output, 'w') as outfile:
+    with open(reffile, 'r') as refseq, open(bedfile, 'r') as bedpeaks, open(output, 'w') as outfile, open(log, 'w') as logfile:
         # list of statistcs to compute
         # refseq name, normal name, number of exons hit, total number of exons, proportion of
         # exonic bases hit, number of exonic bases covered, same 4 for introns, total bases
         # covered, proportion of total bases covered, and total number of bases
-        stats = ('refseq', 'symbol', 'coveredExons', 'totalExons', 'propExonBases',
-        'exonBasesCovered', 'exonicHits', 'coveredIntrons', 'totalIntrons', 'propIntronBases',
-        'intronBasesCovered', 'intronicHits', 'totalBasesCovered', 'propBasesCovered',
-        'totalBases')
+        stats = ('refseq', 'symbol', 'covered_exons', 'total_exons', 'prop_exon_bases',
+        'exon_bases_covered', 'exonic_hits', 'covered_introns', 'total_introns', 'prop_intron_bases',
+        'intron_bases_covered', 'intronic_hits', 'total_bases_covered', 'prop_bases_covered',
+        'total_bases')
         outfile.write("\t".join(stats)+"\n") # write the header
 
         # we don't have to parse any of the refseq or bed file lines because we assume
@@ -39,19 +39,23 @@ def compute_statistics(reffile, bedfile, output):
         # longer possibly match. it stores them as arrays for ease
         curpks = []
 
-        # initialize the peak tracking
+        # initialize the peak tracking variables
+        # what i'm doing here is making sure that the first iteration of the loop
+        # goes through. These all get reset as soon as the script starts
         curpk = bedpeaks.readline().strip()
-        curpkdata = curpk.split("\t")
-        curpks.append(curpkdata)
+        curpkdata = curpk.split("\t") # don't append this data yet
         
         # now iterate through the refseq genes
-        for gene in refseq:
+        for gene in refseq:            
             # make this gene into an array so we can use our ref_coords dict
             genedata = gene.strip().split("\t")
             # initialize the output string for this gene
             outstring = "\t".join([genedata[ref_coords["name"]], genedata[ref_coords["name2"]]])
 
+            logfile.write("Computing statistics on "+genedata[ref_coords["name"]]+" "+genedata[ref_coords['name2']]+'\n')
+            
             # we now must get rid of each peak that cannot overlap with this gene
+            # this is to reduce memory use
             for i in range(len(curpks)-1, -1, -1): # loop backwards to remove
                 pk = curpks[i]
                 # if we end before the gene starts, are on the wrong chromosome, or the wrong
@@ -64,17 +68,22 @@ def compute_statistics(reffile, bedfile, output):
             # we add peaks until we violate one of the conditions seen above
             # also, make sure that we haven't finished reading through the file
             # lengthbool = int(curpkdata[bed_coords['end']]) >= int(genedata[ref_coords['txStart']]) and int(curpkdata[bed_coords['start']]) <= int(genedata[ref_coords['txEnd']])
-            chrombool = curpkdata[bed_coords['chrom']] == genedata[ref_coords['chrom']]
-            strandbool = curpkdata[bed_coords['strand']] == genedata[ref_coords['strand']] 
-            # while curpk and lengthbool and chrombool and strandbool:
-            while curpk and chrombool and strandbool:
-                curpks.append(curpkdata) # add the current peak
+            # here, we check curpk first so that if it's false, we don't try to evaluate
+            # curpkdata and get an index out of bounds error
+            chrombool = curpk and curpkdata[bed_coords['chrom']] == genedata[ref_coords['chrom']]
+            strandbool = curpk and curpkdata[bed_coords['strand']] == genedata[ref_coords['strand']]
+       
+            while chrombool and strandbool:
+                curpks.append(curpkdata) # append the current peak
                 curpk = bedpeaks.readline().strip() # get the next peak to check
-                curpkdata = curpk.split("\t") # split it to get its juicy data
-                # lengthbool = int(curpkdata[bed_coords['end']]) >= int(genedata[ref_coords['txStart']]) and int(curpkdata[bed_coords['start']]) <= int(genedata[ref_coords['txEnd']])
-                chrombool = curpkdata[bed_coords['chrom']] == genedata[ref_coords['chrom']]
-                strandbool = curpkdata[bed_coords['strand']] == genedata[ref_coords['strand']] 
-                                
+                if curpk: # only if we're not done reading the file
+                    curpkdata = curpk.split("\t") # split it to get its juicy data
+                    # lengthbool = int(curpkdata[bed_coords['end']]) >= int(genedata[ref_coords['txStart']]) and int(curpkdata[bed_coords['start']]) <= int(genedata[ref_coords['txEnd']])
+                    chrombool = curpkdata[bed_coords['chrom']] == genedata[ref_coords['chrom']]
+                    strandbool = curpkdata[bed_coords['strand']] == genedata[ref_coords['strand']]
+                else: 
+                    break
+                                                    
             # now we have all the possible overlapping peaks in the curpks list
             exons_covered = 0 # track the number of exons covered
             exonbases = 0 # track the number of exonic bases covered
@@ -233,6 +242,7 @@ if __name__=="__main__":
     parser.add_argument("reffile", help="The sorted reference file. Should be in the refseq format, and sorted according to chromosome, then transcript start.")
     parser.add_argument("bedfile", help="The .bed file that you want to compute overlap statistics for.")
     parser.add_argument("output", help="The name of the file you want to write the statistics to.")
+    parser.add_argument("logfile", help="The name of the file you want to send the log to.")
     pargs = parser.parse_args()
-    compute_statistics(pargs.reffile, pargs.bedfile, pargs.output)
+    compute_statistics(pargs.reffile, pargs.bedfile, pargs.output, pargs.logfile)
 
