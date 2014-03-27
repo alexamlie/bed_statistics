@@ -52,7 +52,7 @@ def compute_statistics(reffile, bedfile, output, log):
             # initialize the output string for this gene
             outstring = "\t".join([genedata[ref_coords["name"]], genedata[ref_coords["name2"]]])
 
-            logfile.write("Computing statistics on "+genedata[ref_coords["name"]]+" "+genedata[ref_coords['name2']]+'\n')
+            logfile.write("Computing statistics on "+"\t".join([genedata[ref_coords["name"]], genedata[ref_coords["name2"]], genedata[ref_coords["chrom"]], genedata[ref_coords["txStart"]], genedata[ref_coords["txEnd"]]])+"\n")
             
             # we now must get rid of each peak that cannot overlap with this gene
             # this is to reduce memory use
@@ -120,16 +120,17 @@ def compute_statistics(reffile, bedfile, output, log):
                 start = exonstarts[i]
                 end = exonends[i]
                 intervalsCovered = [] # this tracks which bases have been covered
-                for pk in curpks:
+                for pk in curpks:                                        
                     # first figure out if we've gone too far past this exon, to avoid
                     # unecessary looping
                     if int(pk[bed_coords['start']]) > end:
-                        continue # try checking more peaks?
+                        continue # skip this peak
                     # then check if this peak can even overlap (we have to do this to try
                     # to optimize because we only remove peaks from curpks at each gene)
                     if int(pk[bed_coords['end']]) < start:
                         continue # skip this peak
                     # if we reach this point, then our peak covers at least part of this exon
+                    logfile.write("Peak overlap: peak "+"\t".join([pk[bed_coords['start']], pk[bed_coords['end']]])+" exon "+"\t".join([str(start), str(end)])+"\n")
                     covered = True
                     exonhits += 1 # add another exonic peak
                     
@@ -226,12 +227,18 @@ def compute_statistics(reffile, bedfile, output, log):
             outfile.write(outstring+"\n")
 
         print "Analysis complete!"
-                 
+
+'''
+This method takes a list of intervals and merges any overlapping ones together.
+'''
 def mergeOverlaps(intervalsCovered):
     retints = [intervalsCovered[0]] # start with the first interval
     for start, end in intervalsCovered:
-        if start < retints[-1][1]: # if we start before the most recent interval ends
-            retints[-1][1] = max(end, retints[-1][1]) # expand the interval
+        # if the current end is after the last intervals start and the current start
+        # is before the end, we have either partial or full overlap
+        if end >= retints[-1][0] and start <= retints[-1][1]:
+            retints[-1][1] = max(end, retints[-1][1]) # expand the end of the interval
+            retints[-1][0] = min(start, retints[-1][0]) # expand the beginning too
         else: # no overlap
             retints.append([start, end])
     return retints
