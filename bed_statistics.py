@@ -26,9 +26,9 @@ def compute_statistics(reffile, bedfile, output, log):
         # exonic bases hit, number of exonic bases covered, same 4 for introns, total bases
         # covered, proportion of total bases covered, and total number of bases
         stats = ('refseq', 'symbol', 'covered_exons', 'total_exons', 'prop_exon_bases',
-        'exon_bases_covered', 'exonic_hits', 'covered_introns', 'total_introns', 'prop_intron_bases',
-        'intron_bases_covered', 'intronic_hits', 'total_bases_covered', 'prop_bases_covered',
-        'total_bases')
+        'exon_bases_covered', 'exonic_bases', 'exonic_hits', 'covered_introns',
+        'total_introns', 'prop_intron_bases', 'intron_bases_covered', 'intronic_bases',
+        'intronic_hits', 'total_bases_covered', 'prop_bases_covered', 'total_bases')
         outfile.write("\t".join(stats)+"\n") # write the header
 
         # we don't have to parse any of the refseq or bed file lines because we assume
@@ -154,18 +154,21 @@ def compute_statistics(reffile, bedfile, output, log):
                 if covered:
                     exons_covered += 1
                     # we first need to process our intervals list to merge overlaps
+                    # i think this step might be superfluous, should add to the log
                     mergedIntervals = mergeOverlaps(intervalsCovered)
                     # now we get all the bases covered
                     for interval in mergedIntervals:
                         exonbases += interval[1] - interval[0]
 
             # done looping through exons
+            # calculate the number of exonic bases
+            exon_base_total = float(sum([end-start for (end, start) in zip(exonends, exonstarts)]))
             # calculate the proportion of exonic bases covered
-            exon_prop = (float(exonbases) / float(sum([end-start for (end, start) in zip(exonends, exonstarts)]))) if exonbases > 0 else 0
+            exon_prop = (float(exonbases) / exon_base_total) if exonbases > 0 else 0
             # add the info to the output string: number of exons covered, total exons
             # proportion of exonic bases, number of exonic bases covered, and number of exonic
             # peaks
-            outstring = "\t".join([outstring, str(exons_covered), str(len(exonstarts)), str(exon_prop), str(exonbases), str(exonhits)])
+            outstring = "\t".join([outstring, str(exons_covered), str(len(exonstarts)), str(exon_prop), str(exonbases), str(exon_base_total), str(exonhits)])
 
             # loop through introns now
             for i in range(len(intronstarts)):
@@ -214,11 +217,14 @@ def compute_statistics(reffile, bedfile, output, log):
                         intronbases += interval[1] - interval[0]
 
             # done looping through introns
+            # calculate the number of intronic bases
+            intron_base_total = float(sum([end-start for (end, start) in zip(intronends, intronstarts)]))
+            
             # calculate the proportion of intronic bases covered
-            intron_prop = (float(intronbases) / float(sum([end-start for (end, start) in zip(intronends, intronstarts)]))) if intronbases > 0 else 0
+            intron_prop = (float(intronbases) / intron_base_total) if intronbases > 0 else 0
             # add the info to the output string: number of introns covered, total introns
             # proportion of intronic bases, number of intronic bases covered, # of intronic peaks
-            outstring = "\t".join([outstring, str(introns_covered), str(len(intronstarts)), str(intron_prop), str(intronbases), str(intronhits)])
+            outstring = "\t".join([outstring, str(introns_covered), str(len(intronstarts)), str(intron_prop), str(intronbases), str(intron_base_total), str(intronhits)])
 
             # finally, add the remaining statistics to the output string and write it
             # calculate the total proportion of bases covered
