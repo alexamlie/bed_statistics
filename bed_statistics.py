@@ -28,7 +28,8 @@ def compute_statistics(reffile, bedfile, output, log):
         stats = ('refseq', 'symbol', 'covered_exons', 'total_exons', 'prop_exon_bases',
         'exon_bases_covered', 'exonic_bases', 'exonic_hits', 'covered_introns',
         'total_introns', 'prop_intron_bases', 'intron_bases_covered', 'intronic_bases',
-        'intronic_hits', 'total_bases_covered', 'prop_bases_covered', 'total_bases')
+        'intronic_hits', 'tp_utr_bases', 'tp_utr_bases_covered', 'tp_utr_hits',
+        'total_bases_covered', 'prop_bases_covered', 'total_bases')
         outfile.write("\t".join(stats)+"\n") # write the header
 
         # we don't have to parse any of the refseq or bed file lines because we assume
@@ -91,7 +92,9 @@ def compute_statistics(reffile, bedfile, output, log):
             introns_covered = 0 # track the number of introns covered
             intronbases = 0 # track the number of intronic bases covered
             intronhits = 0 # track the number of peaks overlapping introns
-
+            utrbases = 0 # track the 3' utr bases covered
+            utrhits = 0 # track the number of 3' utr hitso
+            
             # to go through the windows of the gene (introns and exons), we need to make them
             # into lists. skips the last character because it's a comma
             exonstarts = map(int, genedata[ref_coords['exonStarts']][:-1].split(','))
@@ -226,10 +229,60 @@ def compute_statistics(reffile, bedfile, output, log):
             # proportion of intronic bases, number of intronic bases covered, # of intronic peaks
             outstring = "\t".join([outstring, str(introns_covered), str(len(intronstarts)), str(intron_prop), str(intronbases), str(intron_base_total), str(intronhits)])
 
+            # now compute 3' UTR statistics
+            # note that this is different than looking at the last intron, because
+            # 3' UTR may contain untranslated exons. also, antisense transcripts have
+            # their 3' UTR from the beginning of transcription to the beginning of
+            # the coding region (because they go 'backwards')
+            if genedata[ref_coords['strand']] == "+":
+                utr_start = int(genedata[ref_coords['cdsEnd']])
+                utr_end = int(genedata[ref_coords['txEnd']])
+            else:
+                utr_start = int(genedata[ref_coords['txStart']])
+                utr_end = int(genedata[ref_coords['cdsStart']])
+
+            intervalsCovered = [] 
+            covered = False
+            for pk in curpks:
+                # if this peak starts after the UTR ends, or ends before the UTR begins
+                # we skip it
+                if int(pk[bed_coords['start']]) > utr_end or int(pk[bed_coords['end']]) < utr_start:
+                    continue
+                logfile.write("Peak overlap of 3' UTR: "+"\t".join([pk[bed_coords['start']], pk[bed_coords['end']]])+" UTR region "+"\t".join([str(utr_start), str(utr_end)])+"\n")
+                covered = True
+                utrhits += 1 # add a 3' UTR hit
+                interval = [max(utr_start, int(pk[bed_coords['start']])), min(utr_end, int(pk[bed_coords['end']]))]
+                
+                # check if this interval overlaps with any in the list we have so far
+                overlap = False
+                for i in range(len(intervalsCovered)):
+                    curint = intervalsCovered[i]
+                    # check if our end is after their start and our start is before
+                    # their end. this will catch both partial and full overlaps
+                    if interval[1] >= curint[0] and interval[0] <= curint[1]:
+                        overlap = True
+                        # expand the interval
+                        intervalsCovered[i] = [min(interval[0], curint[0]), max(interval[1], curint[1])]
+
+                # if we didn't overlap, add it to the list
+                if not overlap:
+                    intervalsCovered.append(interval)
+
+            # done looping through, compute the bases covered
+            if covered:
+                mergedIntervals = mergeOverlaps(intervalsCovered)
+                for interval in mergedIntervals:
+                    utrbases += interval[1] - interval[0]
+
+            utr_base_total = utr_end - utr_start
+            # add the UTR information
+            outstring = "\t".join([outstring, str(utr_base_total), str(utrbases), str(utrhits)])
+                        
             # finally, add the remaining statistics to the output string and write it
             # calculate the total proportion of bases covered
             total_prop = (float(intronbases+exonbases) / (float(genedata[ref_coords['txEnd']]) - float(genedata[ref_coords['txStart']]))) if intronbases+exonbases > 0 else 0
             outstring = "\t".join([outstring, str(intronbases+exonbases), str(total_prop), str(float(genedata[ref_coords['txEnd']]) - float(genedata[ref_coords['txStart']]))])
+            
             outfile.write(outstring+"\n")
 
         print "Analysis complete!"
