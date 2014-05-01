@@ -42,7 +42,7 @@ def convert_multicov(cov_file, outdir):
             end_list.append(data[2])
             chrdata = "\t".join(data[:3])
             for i in range(len(exps)):
-                ## write the chromosome data and then the counts (in the right order)            
+                ## write the chromosome data and then the counts (in the right order) 
                 exp_files[exps[i]].write("\t".join([chrdata, data[i+6]])+"\n")
         
     [exp_files[i].close() for i in exp_files]
