@@ -148,6 +148,7 @@ def compute_statistics(reffile, ref_dict, bedfile, output, log):
             # now define the coding exons
             # if the coding region start and end are the same, we have no coding exons
             if int(genedata[ref_dict['cdsStart']]) == int(genedata[ref_dict['cdsEnd']]):
+                logfile.write("Non-coding transcript\n")
                 outstring = "\t".join([outstring, "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0"])
             else:
                 # start by using all the exons
@@ -157,10 +158,28 @@ def compute_statistics(reffile, ref_dict, bedfile, output, log):
                 # however, these lists contain the UTRs, because of the way refseq works
                 # (the first exon starts at the beginning of the transcript and the last exon
                 # ends at the end of the transcript, always), so we have to change them
+
                 # first coding exon starts at the beginning of the coding region            
-                exonstarts[0] = int(genedata[ref_dict['cdsStart']])
-                # last coding exon ends at the end of the coding region
-                exonends[-1] = int(genedata[ref_dict['cdsEnd']])
+                # remove exons that are in the wrong place
+                # loop backwards so that we can remove
+                for i in range(len(exonends)-1, -1, -1):
+                    # if an exon ends before the coding region begins, or starts after the
+                    # coding region ends, remove it and go to the next one
+                    if exonends[i] < int(genedata[ref_dict['cdsStart']]) or exonstarts[i] > int(genedata[ref_dict['cdsEnd']]):
+                        exonends.pop(i)
+                        exonstarts.pop(i)
+                        continue
+
+                    # check for whether we need to set this start to the cdsStart
+                    # this is when the exon starts before the cdsStart and ends after it (which
+                    # we already know, from the test above)
+                    if exonstarts[i] < int(genedata[ref_dict['cdsStart']]):
+                        exonstarts[i] = int(genedata[ref_dict['cdsStart']])
+                    # check for whether the end needs to be set to cdsEnd
+                    # this is when the start is before cdsEnd (which we already know it is),
+                    # and the end is after it
+                    if exonends[i] > int(genedata[ref_dict['cdsEnd']]):
+                        exonends[i] = int(genedata[ref_dict['cdsEnd']])
                 
                 # build up the lists of introns
                 intronstarts = []
@@ -172,6 +191,9 @@ def compute_statistics(reffile, ref_dict, bedfile, output, log):
                     intronends.append(exonstarts[i+1]) # intron ends where exon starts
 
                 # now we have our information on where the exons and introns are, so we do analysis
+                # print out the lists to the log file
+                logfile.write("\t".join(["5' UTR:", str(fp_utr_start), str(fp_utr_end), "exons:", str([[exonst, exonend] for (exonst, exonend) in zip(exonstarts, exonends)]), "introns:", str([[intronst, intronend] for (intronst, intronend) in zip(intronstarts, intronends)]), "3' UTR:", str(tp_utr_start), str(tp_utr_end)])+"\n")
+
                 # -------------------------------------------------
                 # loop through exons
                 # -------------------------------------------------
@@ -214,12 +236,9 @@ def compute_statistics(reffile, ref_dict, bedfile, output, log):
                     if covered:
                         exons_covered += 1
                         # we first need to process our intervals list to merge overlaps
-                        # i think this step might be superfluous, should add to the log
-                        logfile.write("Pre-mergeOverlaps intervals covered: "+"\t".join(map(str, intervalsCovered))+"\n")
-                        mergedIntervals = mergeOverlaps(intervalsCovered)
-                        logfile.write("Post mergeOverlaps intervals covered: "+"\t".join(map(str, mergedIntervals))+"\n")
+                        # mergedIntervals = mergeOverlaps(intervalsCovered)
                         # now we get all the bases covered
-                        for interval in mergedIntervals:
+                        for interval in intervalsCovered:
                             exonbases += interval[1] - interval[0]
 
                 # done looping through exons
@@ -275,9 +294,9 @@ def compute_statistics(reffile, ref_dict, bedfile, output, log):
                     if covered:
                         introns_covered += 1
                         # we first need to process our intervals list to merge overlaps
-                        mergedIntervals = mergeOverlaps(intervalsCovered)
+                        ## mergedIntervals = mergeOverlaps(intervalsCovered)
                         # now we get all the bases covered
-                        for interval in mergedIntervals:
+                        for interval in intervalsCovered:
                             intronbases += interval[1] - interval[0]
 
                 # done looping through introns
@@ -326,8 +345,8 @@ def compute_statistics(reffile, ref_dict, bedfile, output, log):
 
             # done looping through, compute the bases covered
             if covered:
-                mergedIntervals = mergeOverlaps(intervalsCovered)
-                for interval in mergedIntervals:
+                # mergedIntervals = mergeOverlaps(intervalsCovered)
+                for interval in intervalsCovered:
                     tp_utrbases += interval[1] - interval[0]
 
             tp_utr_base_total = tp_utr_end - tp_utr_start
@@ -371,8 +390,8 @@ def compute_statistics(reffile, ref_dict, bedfile, output, log):
 
             # done looping through, compute the bases covered
             if covered:
-                mergedIntervals = mergeOverlaps(intervalsCovered)
-                for interval in mergedIntervals:
+                ## mergedIntervals = mergeOverlaps(intervalsCovered)
+                for interval in intervalsCovered:
                     fp_utrbases += interval[1] - interval[0]
 
             fp_utr_base_total = fp_utr_end - fp_utr_start
@@ -392,6 +411,8 @@ def compute_statistics(reffile, ref_dict, bedfile, output, log):
 
 '''
 This method takes a list of intervals and merges any overlapping ones together.
+I'm leaving it in for completeness, but I found that this is actually superfluous,
+since the intervals are all merged before it ever gets called. 
 '''
 def mergeOverlaps(intervalsCovered):
     retints = [intervalsCovered[0]] # start with the first interval
