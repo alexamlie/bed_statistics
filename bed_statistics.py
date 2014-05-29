@@ -70,7 +70,7 @@ def compute_statistics(reffile, ref_dict, bedfile, output, log):
             genedata = gene.strip().split("\t")
             # initialize the output string for this gene            
             outstring = "\t".join([genedata[ref_dict["name"]], genedata[ref_dict["name2"]]])
-            logfile.write("Computing statistics on "+"\t".join([genedata[ref_dict["name"]], genedata[ref_dict["name2"]], genedata[ref_dict["chrom"]], genedata[ref_dict["txStart"]], genedata[ref_dict["txEnd"]]])+"\n")
+            logfile.write("Computing statistics on "+"\t".join([genedata[ref_dict["name"]], genedata[ref_dict["name2"]], genedata[ref_dict["chrom"]], genedata[ref_dict["txStart"]], genedata[ref_dict["txEnd"]], genedata[ref_dict['strand']]])+"\n")
                         
             # we now must get rid of each peak that cannot overlap with this gene
             # this is to reduce memory use
@@ -171,8 +171,8 @@ def compute_statistics(reffile, ref_dict, bedfile, output, log):
                         continue
 
                     # check for whether we need to set this start to the cdsStart
-                    # this is when the exon starts before the cdsStart and ends after it (which
-                    # we already know, from the test above)
+                    # this is when the exon starts before the cdsEnd and ends after cdsStart
+                    # (which we already know, from the test above)
                     if exonstarts[i] < int(genedata[ref_dict['cdsStart']]):
                         exonstarts[i] = int(genedata[ref_dict['cdsStart']])
                     # check for whether the end needs to be set to cdsEnd
