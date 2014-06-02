@@ -38,16 +38,16 @@ def compute_statistics(reffile, ref_dict, bedfile, output, log):
         
         
     with open(reffile, 'r') as reference, open(bedfile, 'r') as bedpeaks, open(output, 'w') as outfile, open(log, 'w') as logfile:
-        # list of statistcs to compute
-        # refseq name, normal name, number of exons hit, total number of exons, proportion of
-        # exonic bases hit, number of exonic bases covered, same 4 for introns, total bases
-        # covered, proportion of total bases covered, and total number of bases
+        # list of statistcs to compute refseq name, normal name, number of exons hit, total
+        # number of exons, proportion of exonic bases hit, number of exonic bases covered, same
+        # 4 for introns, same 4 for 3' and 5' UTRs, total bases covered, proportion of total
+        # bases covered, total number of bases, and total number of CLIP hits (for convenience)
         stats = ('refseq', 'symbol', 'covered_exons', 'total_exons', 'prop_exon_bases',
         'exon_bases_covered', 'exonic_bases', 'exonic_hits', 'covered_introns',
         'total_introns', 'prop_intron_bases', 'intron_bases_covered', 'intronic_bases',
         'intronic_hits', 'tp_utr_bases', 'tp_utr_bases_covered', 'tp_utr_hits', 'tp_utr_prop',
         'fp_utr_bases', 'fp_utr_bases_covered', 'fp_utr_hits', 'fp_utr_prop',
-        'total_bases_covered', 'prop_bases_covered', 'total_bases')
+        'total_bases_covered', 'prop_bases_covered', 'total_bases', 'total_hits')
         outfile.write("\t".join(stats)+"\n") # write the header
 
         # we don't have to pre-parse any of the reference or bed file lines because we assume
@@ -184,14 +184,14 @@ def compute_statistics(reffile, ref_dict, bedfile, output, log):
                 # build up the lists of introns
                 intronstarts = []
                 intronends = []
-                # loop through exons (this assumes the two exon lists are the same length, which
-                # they always should be)
+                # loop through exons (this assumes the two exon lists are the same length,
+                # which they always should be)
                 for i in range(len(exonstarts)-1):
                     intronstarts.append(exonends[i]) # intron starts where exon ends
                     intronends.append(exonstarts[i+1]) # intron ends where exon starts
 
-                # now we have our information on where the exons and introns are, so we do analysis
-                # print out the lists to the log file
+                # now we have our information on where the exons and introns are, so we do
+                # analysis print out the lists to the log file
                 logfile.write("\t".join(["5' UTR:", str(fp_utr_start), str(fp_utr_end), "exons:", str([[exonst, exonend] for (exonst, exonend) in zip(exonstarts, exonends)]), "introns:", str([[intronst, intronend] for (intronst, intronend) in zip(intronstarts, intronends)]), "3' UTR:", str(tp_utr_start), str(tp_utr_end)])+"\n")
 
                 # -------------------------------------------------
@@ -211,7 +211,8 @@ def compute_statistics(reffile, ref_dict, bedfile, output, log):
                         # (we only remove peaks from curpks at each gene iteration)
                         if int(pk[bed_coords['end']]) < start:
                             continue # skip this peak
-                        # if we reach this point, then our peak covers at least part of this exon
+                        # if we reach this point, then our peak covers at least part of this
+                        # exon
                         logfile.write("Peak overlap: peak "+"\t".join([pk[bed_coords['start']], pk[bed_coords['end']]])+" exon "+"\t".join([str(start), str(end)])+"\n")
                         covered = True
                         exonhits += 1 # add another exonic peak
@@ -402,8 +403,8 @@ def compute_statistics(reffile, ref_dict, bedfile, output, log):
                         
             # finally, add the remaining statistics to the output string and write it
             # calculate the total proportion of bases covered
-            total_prop = (float(intronbases+exonbases) / (float(genedata[ref_dict['txEnd']]) - float(genedata[ref_dict['txStart']]))) if intronbases+exonbases > 0 else 0
-            outstring = "\t".join([outstring, str(intronbases+exonbases), str(total_prop), str(float(genedata[ref_dict['txEnd']]) - float(genedata[ref_dict['txStart']]))])
+            total_prop = (float(intronbases+exonbases+tp_utrbases+fp_utrbases) / (float(genedata[ref_dict['txEnd']]) - float(genedata[ref_dict['txStart']]))) if intronbases+exonbases+tp_utrbases_fp_utrbases > 0 else 0
+            outstring = "\t".join([outstring, str(intronbases+exonbases+tp_utrbases+fp_utrbases), str(total_prop), str(float(genedata[ref_dict['txEnd']]) - float(genedata[ref_dict['txStart']])), str(exonhits+intronhits+tp_utrhits+fp_utrhits)])
             
             outfile.write(outstring+"\n")
 
