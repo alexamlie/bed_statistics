@@ -3,7 +3,7 @@ bed_statistics.py
 Alex Amlie-Wolf, Spring 2014
 
 A program to compute various coverage statistics given a .bed file and a reference
-genome in refseq format.
+genome with a header file describing its columns.
 Only works with Python 2.7 and above, because of the with open, open, open construction
 Both the .bed and the reference file must be sorted by chromosome and strand, then by start
 position. This is to ensure that we don't skip any peaks that we should look at
