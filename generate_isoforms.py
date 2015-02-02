@@ -13,7 +13,7 @@ Only works with Python 2.7 and above
 import argparse
 
 def ref_to_bed(ref_file, out_file):
-    # define a convenienec dict to access the refseq file
+    # define a convenience dict to access the refseq file
     ref_coords = {'bin': 0, 'cdsEnd': 7, 'cdsEndStat': 14, 'cdsStart': 6, 'cdsStartStat': 13,
  'chrom': 2, 'exonCount': 8, 'exonEnds': 10, 'exonFrames': 15, 'exonStarts': 9, 'name': 1,
  'name2': 12, 'score': 11, 'strand': 3, 'txEnd': 5, 'txStart': 4}
