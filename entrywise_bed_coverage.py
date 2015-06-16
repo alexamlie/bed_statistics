@@ -13,9 +13,10 @@ For now, takes in bed files with only three columns. FIX THIS EVENTUALLY
 Requires Python >= 2.7
 """
 
-import argparse, sys, os
+import argparse, sys, os, time, gzip
 
-def compute_coverage(logfile, promoter_f, exon_f, intron_f, repeat_f, input_f, entrywise_out_f, summary_out_f):
+def compute_coverage(promoter_f, exon_f, intron_f, repeat_f, input_f, entrywise_out_f, summary_out_f):
+    start = time.clock()
     """
     the main function to compute the coverage of the entries in the bed file.
     """
@@ -26,10 +27,12 @@ def compute_coverage(logfile, promoter_f, exon_f, intron_f, repeat_f, input_f, e
     bed_coords["end"] = 2    
     bed_coords["strand"] = 5
 
-    if logfile:
-        log = open(logfile, 'w')
-                    
-    with open(promoter_f, 'r') as promoters, open(exon_f, 'r') as exons, open(intron_f, 'r') as introns, open(repeat_f, 'r') as repeats, open(input_f, 'r') as input_beds, open(entrywise_out_f, 'w') as entry_out, open(summary_out_f, 'w') as summary_out:
+    if input_f[-2:]=='gz':
+        input_beds = gzip.open(input_f, 'rb')
+    else:
+        input_beds = open(input_f, 'r')
+    
+    with open(promoter_f, 'r') as promoters, open(exon_f, 'r') as exons, open(intron_f, 'r') as introns, open(repeat_f, 'r') as repeats, open(entrywise_out_f, 'w') as entry_out, open(summary_out_f, 'w') as summary_out:
         # loop through input bed file, and store lists of potential peaks from other file types
         # (we don't want to stop considering a peak until the start site that we are looking at is
         # past its end site)
@@ -77,7 +80,9 @@ def compute_coverage(logfile, promoter_f, exon_f, intron_f, repeat_f, input_f, e
             if entry_ctr % 1000==0:
                 print entry_ctr
             entry_data = entry.strip().split('\t')
-            this_length = int(entry_data[bed_coords['end']]) - int(entry_data[bed_coords['start']])
+            entry_start = int(entry_data[bed_coords['start']])
+            entry_end = int(entry_data[bed_coords['end']])
+            this_length = int(entry_data[bed_coords['end']]) - entry_start
             total_entry_bp += this_length
             if entry_data[bed_coords['chrom']] == this_chr:
                 this_chr_entry_bp += this_length
@@ -106,50 +111,47 @@ def compute_coverage(logfile, promoter_f, exon_f, intron_f, repeat_f, input_f, e
                 this_chr_intron_bp = 0.0 
                 this_chr_repeat_bp = 0.0                                 
                 print 'Parsing chromosome '+this_chr
-                print " ".join([str(len(cur_promoters)), str(len(cur_exons)), str(len(cur_introns)), str(len(cur_repeats))])
             ## add all possibly overlapping entries for each type of element
             ## must have same chromosome and start before the end of the entry
-            ## i don't enforce the end being after the start so that we can get through the elements
-            ## that are before our current entry (these are removed right after this)
-            promoterbool = len(cur_promoter) > 1 and cur_promoter[bed_coords['chrom']]==entry_data[bed_coords['chrom']] # and int(cur_promoter[bed_coords['start']]) <= int(entry_data[bed_coords['end']])
+            promoterbool = len(cur_promoter) > 1 and cur_promoter[bed_coords['chrom']]==entry_data[bed_coords['chrom']] and int(cur_promoter[bed_coords['start']]) <= entry_end
             while promoterbool:
                 cur_promoters.append(cur_promoter)
                 cur_promoter = promoters.readline().strip().split('\t')
-                promoterbool = len(cur_promoter) > 1 and cur_promoter[bed_coords['chrom']]==entry_data[bed_coords['chrom']] # and int(cur_promoter[bed_coords['start']]) <= int(entry_data[bed_coords['end']])
+                promoterbool = len(cur_promoter) > 1 and cur_promoter[bed_coords['chrom']]==entry_data[bed_coords['chrom']] and int(cur_promoter[bed_coords['start']]) <= entry_end
                 
-            exonbool = len(cur_exon) > 1 and cur_exon[bed_coords['chrom']]==entry_data[bed_coords['chrom']] # and int(cur_exon[bed_coords['start']]) <= int(entry_data[bed_coords['end']])
+            exonbool = len(cur_exon) > 1 and cur_exon[bed_coords['chrom']]==entry_data[bed_coords['chrom']] and int(cur_exon[bed_coords['start']]) <= entry_end
             while exonbool:
                 cur_exons.append(cur_exon)
                 cur_exon = exons.readline().strip().split('\t')
-                exonbool = len(cur_exon) > 1 and cur_exon[bed_coords['chrom']]==entry_data[bed_coords['chrom']] # and int(cur_exon[bed_coords['start']]) <= int(entry_data[bed_coords['end']]) 
+                exonbool = len(cur_exon) > 1 and cur_exon[bed_coords['chrom']]==entry_data[bed_coords['chrom']] and int(cur_exon[bed_coords['start']]) <= entry_end 
 
-            intronbool = len(cur_intron) > 1 and cur_intron[bed_coords['chrom']]==entry_data[bed_coords['chrom']] # and int(cur_intron[bed_coords['start']]) <= int(entry_data[bed_coords['end']]) 
+            intronbool = len(cur_intron) > 1 and cur_intron[bed_coords['chrom']]==entry_data[bed_coords['chrom']] and int(cur_intron[bed_coords['start']]) <= entry_end 
             while intronbool:
                 cur_introns.append(cur_intron)
                 cur_intron = introns.readline().strip().split('\t')
-                intronbool = len(cur_intron) > 1 and cur_intron[bed_coords['chrom']]==entry_data[bed_coords['chrom']] # and int(cur_intron[bed_coords['start']]) <= int(entry_data[bed_coords['end']]) 
+                intronbool = len(cur_intron) > 1 and cur_intron[bed_coords['chrom']]==entry_data[bed_coords['chrom']] and int(cur_intron[bed_coords['start']]) <= entry_end 
 
-            repeatbool = len(cur_repeat) > 1 and cur_repeat[bed_coords['chrom']]==entry_data[bed_coords['chrom']] # and int(cur_repeat[bed_coords['start']]) <= int(entry_data[bed_coords['end']]) 
+            repeatbool = len(cur_repeat) > 1 and cur_repeat[bed_coords['chrom']]==entry_data[bed_coords['chrom']] and int(cur_repeat[bed_coords['start']]) <= entry_end 
             while repeatbool:
                 cur_repeats.append(cur_repeat)
                 cur_repeat = repeats.readline().strip().split('\t')
-                repeatbool = len(cur_repeat) > 1 and cur_repeat[bed_coords['chrom']]==entry_data[bed_coords['chrom']] # and int(cur_repeat[bed_coords['start']]) <= int(entry_data[bed_coords['end']]) 
+                repeatbool = len(cur_repeat) > 1 and cur_repeat[bed_coords['chrom']]==entry_data[bed_coords['chrom']] and int(cur_repeat[bed_coords['start']]) <= entry_end 
 
             ## remove entries that are before the current entry here:
             for i in range(len(cur_promoters)-1, -1, -1):
-                if cur_promoters[i][bed_coords['chrom']] != entry_data[bed_coords['chrom']] or int(cur_promoters[i][bed_coords['end']]) < int(entry_data[bed_coords['start']]):
+                if cur_promoters[i][bed_coords['chrom']] != entry_data[bed_coords['chrom']] or int(cur_promoters[i][bed_coords['end']]) < entry_start:
                     cur_promoters.pop(i)
 
             for i in range(len(cur_exons)-1, -1, -1):
-                if cur_exons[i][bed_coords['chrom']] != entry_data[bed_coords['chrom']] or int(cur_exons[i][bed_coords['end']]) < int(entry_data[bed_coords['start']]):
+                if cur_exons[i][bed_coords['chrom']] != entry_data[bed_coords['chrom']] or int(cur_exons[i][bed_coords['end']]) < entry_start:
                     cur_exons.pop(i)
 
             for i in range(len(cur_introns)-1, -1, -1):
-                if cur_introns[i][bed_coords['chrom']] != entry_data[bed_coords['chrom']] or int(cur_introns[i][bed_coords['end']]) < int(entry_data[bed_coords['start']]):
+                if cur_introns[i][bed_coords['chrom']] != entry_data[bed_coords['chrom']] or int(cur_introns[i][bed_coords['end']]) < entry_start:
                     cur_introns.pop(i)
 
             for i in range(len(cur_repeats)-1, -1, -1):
-                if cur_repeats[i][bed_coords['chrom']] != entry_data[bed_coords['chrom']] or int(cur_repeats[i][bed_coords['end']]) < int(entry_data[bed_coords['start']]):
+                if cur_repeats[i][bed_coords['chrom']] != entry_data[bed_coords['chrom']] or int(cur_repeats[i][bed_coords['end']]) < entry_start:
                     cur_repeats.pop(i)                                        
                                     
             ## now compare the current entry to all these peaks
@@ -159,23 +161,21 @@ def compute_coverage(logfile, promoter_f, exon_f, intron_f, repeat_f, input_f, e
             this_exon_bp = 0.0
             this_intron_bp = 0.0
             this_repeat_bp = 0.0
-            entry_start = int(entry_data[bed_coords['start']])
-            entry_end = int(entry_data[bed_coords['end']])
             for cp in cur_promoters:
-                if int(cp[bed_coords['start']]) > int(entry_data[bed_coords['end']]):
-                    break
+                # if int(cp[bed_coords['start']]) > int(entry_data[bed_coords['end']]):
+                #     break
                 this_promoter_bp += max(0, min(int(cp[bed_coords['end']]), entry_end) - max(int(cp[bed_coords['start']]), entry_start))
             for ce in cur_exons:
-                if int(ce[bed_coords['start']]) > int(entry_data[bed_coords['end']]):
-                    break
+                # if int(ce[bed_coords['start']]) > int(entry_data[bed_coords['end']]):
+                #     break
                 this_exon_bp += max(0, min(int(ce[bed_coords['end']]), entry_end) - max(int(ce[bed_coords['start']]), entry_start))
             for ci in cur_introns:
-                if int(ci[bed_coords['start']]) > int(entry_data[bed_coords['end']]):
-                    break                
+                # if int(ci[bed_coords['start']]) > int(entry_data[bed_coords['end']]):
+                #     break                
                 this_intron_bp += max(0, min(int(ci[bed_coords['end']]), entry_end) - max(int(ci[bed_coords['start']]), entry_start))
             for cr in cur_repeats:
-                if int(cr[bed_coords['start']]) > int(entry_data[bed_coords['end']]):
-                    break                
+                # if int(cr[bed_coords['start']]) > int(entry_data[bed_coords['end']]):
+                #     break                
                 this_repeat_bp += max(0, min(int(cr[bed_coords['end']]), entry_end) - max(int(cr[bed_coords['start']]), entry_start))
             ## add these overlaps to the summary trackers
             this_chr_promoter_bp += this_promoter_bp
@@ -190,15 +190,16 @@ def compute_coverage(logfile, promoter_f, exon_f, intron_f, repeat_f, input_f, e
             entry_out.write('\t'.join([entry_data[bed_coords['chrom']], entry_data[bed_coords['start']], entry_data[bed_coords['end']], str(this_promoter_bp), str(this_promoter_bp / this_length), str(this_exon_bp), str(this_exon_bp / this_length), str(this_intron_bp), str(this_intron_bp / this_length), str(this_repeat_bp), str(this_repeat_bp / this_length)])+'\n')
 
         summary_out.write('\t'.join(['genomewide', str(total_promoter_bp), str(total_promoter_bp/total_entry_bp), str(total_exon_bp), str(total_exon_bp/total_entry_bp), str(total_intron_bp), str(total_intron_bp/total_entry_bp), str(total_repeat_bp), str(total_repeat_bp/total_entry_bp)])+'\n')
-    if logfile:
-        log.close()
+
+    input_beds.close()
         
-    print "Analysis complete!"
+    end = time.clock()
+    length = end - start
+    print "Analysis complete, time: ", length
 
 if __name__=="__main__":
     # create the argument parser
     parser = argparse.ArgumentParser(description="Compute coverage statistics for each entry of a bed file. All input files should be sorted according to chromosome, strand (if applicable) and start position.")
-    parser.add_argument("-l", "--log", help="The location of the optional log file. With no argument, no log is written.")
     parser.add_argument("promoter_bed", help="The .bed file containing promoter loci")
     parser.add_argument("exon_bed", help="The .bed file containing exons")
     parser.add_argument("intron_bed", help="The .bed file containing introns")
@@ -208,4 +209,4 @@ if __name__=="__main__":
     parser.add_argument("summary_output", help="The path to the desired output file containing summary statistics of the coverage of each type of element")
     pargs = parser.parse_args()
 
-    compute_coverage(pargs.log, pargs.promoter_bed, pargs.exon_bed, pargs.intron_bed, pargs.repeat_bed, pargs.input_bed, pargs.entrywise_output, pargs.summary_output)
+    compute_coverage(pargs.promoter_bed, pargs.exon_bed, pargs.intron_bed, pargs.repeat_bed, pargs.input_bed, pargs.entrywise_output, pargs.summary_output)
