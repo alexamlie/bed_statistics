@@ -18,9 +18,27 @@ qsub -wd ~/code/bed_statistics/logs/ -N merge_hg19_reference ~/code/qsub_wrapper
 ## now get the exclusive element loci
 qsub -wd ~/code/bed_statistics/logs/ -N get_hg19_exclusive_elements ~/code/bed_statistics/get_hg19_exclusive_elements.sh
 
+## -------------
+## SPLIT BY STRAND ANALYSIS:
+## -------------
+cd ~/data/refgenomes/hg19/hg19_refseq/
+mkdir -p pos_strand_files/ neg_strand_files/
 
+## take the parsed input files, split into positive and negative
+awk '{if ($6=="+") print $0}' parsed_promoters.bed > pos_strand_files/parsed_pos_promoters.bed
+awk '{if ($6=="+") print $0}' parsed_exons.bed > pos_strand_files/parsed_pos_exons.bed
+awk '{if ($6=="+") print $0}' parsed_introns.bed > pos_strand_files/parsed_pos_introns.bed
+awk '{if ($6=="+") print $0}' parsed_repeats.bed > pos_strand_files/parsed_pos_repeats.bed
 
+awk '{if ($6=="-") print $0}' parsed_promoters.bed > neg_strand_files/parsed_neg_promoters.bed
+awk '{if ($6=="-") print $0}' parsed_exons.bed > neg_strand_files/parsed_neg_exons.bed
+awk '{if ($6=="-") print $0}' parsed_introns.bed > neg_strand_files/parsed_neg_introns.bed
+awk '{if ($6=="-") print $0}' parsed_repeats.bed > neg_strand_files/parsed_neg_repeats.bed
 
+## now merge these
+qsub -wd ~/code/bed_statistics/logs/ -N merge_hg19_pos_reference ~/code/qsub_wrappers/python_wrapper.sh ~/code/bed_statistics/merge_reference_beds.py ~/data/refgenomes/hg19/hg19_refseq/pos_strand_files/parsed_pos_promoters.bed ~/data/refgenomes/hg19/hg19_refseq/pos_strand_files/parsed_pos_exons.bed ~/data/refgenomes/hg19/hg19_refseq/pos_strand_files/parsed_pos_introns.bed ~/data/refgenomes/hg19/hg19_refseq/pos_strand_files/parsed_pos_repeats.bed
 
+qsub -wd ~/code/bed_statistics/logs/ -N merge_hg19_neg_reference ~/code/qsub_wrappers/python_wrapper.sh ~/code/bed_statistics/merge_reference_beds.py ~/data/refgenomes/hg19/hg19_refseq/neg_strand_files/parsed_neg_promoters.bed ~/data/refgenomes/hg19/hg19_refseq/neg_strand_files/parsed_neg_exons.bed ~/data/refgenomes/hg19/hg19_refseq/neg_strand_files/parsed_neg_introns.bed ~/data/refgenomes/hg19/hg19_refseq/neg_strand_files/parsed_neg_repeats.bed
 
-
+## finally, generate the exclusive elements for each strand
+qsub -wd ~/code/bed_statistics/logs/ -N get_hg19_stranded_exclusive_elements ~/code/bed_statistics/get_hg19_strand_exclusive_elements.sh
