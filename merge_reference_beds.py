@@ -1,4 +1,5 @@
 #!/usr/bin/python
+
 ## merge_reference_beds.py
 ## alex amlie-wolf 06-11-2015
 ## takes bed files and merges overlapping entries within each one

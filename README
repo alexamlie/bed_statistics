@@ -1,3 +1,9 @@
+genewise_bed_coverage.py - compute coverage of a .bed file over all genes
+entrywise_bed_coverage.py - from the other direction, given a .bed file and 4 .bed files
+		         containing promoters, exons, introns, and repeat regions, calculate
+		         genomic partition of each entry in the .bed file (no UTRs)
+			 
+
 UPDATE THIS
 
 bed_gene_feature_coverage.py is the main script here. It is used to compute various coverage statistics given
