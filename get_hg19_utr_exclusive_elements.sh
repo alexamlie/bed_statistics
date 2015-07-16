@@ -7,6 +7,8 @@
 ## and unlike get_hg19_strand_exclusive_elements.sh, this one takes 5' and 3' UTRs into account
 ## see hg19_analysis_steps.sh for details
 
+## this file only uses UTR exons
+
 ## currently using the hierarchy:
 ## 5' UTR > promoter > exon > intron > 3' UTR > repeat
 cd ~/data/refgenomes/hg19/hg19_utr_refseq/

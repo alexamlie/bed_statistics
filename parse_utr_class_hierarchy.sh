@@ -34,15 +34,15 @@ if [ $# == 1 ]; then
     PROM_PROP=`echo ${NUM_PROMOTER}/${TOTAL_NUM} | bc -l`
     EXON_PROP=`echo ${NUM_EXON}/${TOTAL_NUM} | bc -l`
     INTRON_PROP=`echo ${NUM_INTRON}/${TOTAL_NUM} | bc -l`
-    FP_UTR_PROP=`echo ${NUM_TP_UTR}/${TOTAL_NUM} | bc -l`    
+    TP_UTR_PROP=`echo ${NUM_TP_UTR}/${TOTAL_NUM} | bc -l`    
     REPEAT_PROP=`echo ${NUM_REPEAT}/${TOTAL_NUM} | bc -l`
     INTER_PROP=`echo ${NUM_INTER}/${TOTAL_NUM} | bc -l`
     TOTAL_PROP=`echo "(${NUM_FP_UTR}+${NUM_PROMOTER}+${NUM_EXON}+${NUM_INTRON}+${NUM_TP_UTR}+${NUM_REPEAT}+${NUM_INTER})/${TOTAL_NUM}" | bc -l`
     
     printf "Summary of file %s:\n" "$INFILE"
     printf "Type\tNumber\tProportion\n"
-    printf "5' UTRs\t%d\t%.5f\n" "$NUM_FP_UTR" "$PROM_FP_UTR"
-    printf "3' UTRs\t%d\t%.5f\n" "$NUM_TP_UTR" "$PROM_TP_UTR"    
+    printf "5' UTRs\t%d\t%.5f\n" "$NUM_FP_UTR" "$FP_UTR_PROP"
+    printf "3' UTRs\t%d\t%.5f\n" "$NUM_TP_UTR" "$TP_UTR_PROP"    
     printf "Promoters\t%d\t%.5f\n" "$NUM_PROMOTER" "$PROM_PROP"
     printf "Exons\t%d\t%.5f\n" "$NUM_EXON" "$EXON_PROP"
     printf "Introns\t%d\t%.5f\n" "$NUM_INTRON" "$INTRON_PROP"

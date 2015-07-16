@@ -78,3 +78,59 @@ qsub -wd ~/code/bed_statistics/logs/ -N merge_hg19_utrs ~/code/qsub_wrappers/pyt
 
 ## finally, generate the exclusive elements for each strand (with UTRs)
 qsub -wd ~/code/bed_statistics/logs/ -N get_hg19_utr_exclusive_elements ~/code/bed_statistics/get_hg19_utr_exclusive_elements.sh
+
+## -------------
+## 07-16-2015: better UTR analysis, the one above contained only exons
+## we want to use exons as well as introns, so I generate those files from Pavel's annotation
+## -------------
+cd ~/data/refgenomes/hg19/hg19_utr_refseq/
+mkdir -p utr_exons_only
+mv -t utr_exons_only/ * ## only run this once, otherwise you will mix up the two annotations
+mkdir -p full_utrs
+cd full_utrs/
+
+FULLTAB=/mnt/niagads/users/pkuksa/datasets/smRNA/smRNAdatabase/hsa19.fulltable.gff
+
+## first pull out raw bed files for each category
+mkdir -p raw_files parsed_files pos_files neg_files
+
+## link the parsed and merged other files here (strand specific)
+for f in ~/data/refgenomes/hg19/hg19_refseq/pos_strand_files/parsed_*.merged.bed; do
+    ln -s $f pos_files/
+done
+
+for f in ~/data/refgenomes/hg19/hg19_refseq/neg_strand_files/parsed_*.merged.bed; do
+    ln -s $f neg_files/
+done
+
+cd raw_files
+
+## convert to bed format:
+awk '{if ($3=="UTR5_exon") printf "%s\t%d\t%d\t%s\t%d\t%s\n",$1,$4,$5,$9,0,$7}' $FULLTAB > 5utr_exons.bed
+awk '{if ($3=="UTR5_intron") printf "%s\t%d\t%d\t%s\t%d\t%s\n",$1,$4,$5,$9,0,$7}' $FULLTAB > 5utr_introns.bed
+awk '{if ($3=="UTR3_exon") printf "%s\t%d\t%d\t%s\t%d\t%s\n",$1,$4,$5,$9,0,$7}' $FULLTAB > 3utr_exons.bed
+awk '{if ($3=="UTR3_intron") printf "%s\t%d\t%d\t%s\t%d\t%s\n",$1,$4,$5,$9,0,$7}' $FULLTAB > 3utr_introns.bed
+
+## parse these raw files
+qsub -wd ~/code/bed_statistics/logs/ -N hg19_parse_5utr_exons ~/code/bed_statistics/parse_bedfile_chrs.sh ~/data/refgenomes/hg19/hg19_utr_refseq/full_utrs/raw_files/5utr_exons.bed ~/data/refgenomes/hg19/hg19_utr_refseq/full_utrs/parsed_files/parsed_5utr_exons.bed
+qsub -wd ~/code/bed_statistics/logs/ -N hg19_parse_5utr_introns ~/code/bed_statistics/parse_bedfile_chrs.sh ~/data/refgenomes/hg19/hg19_utr_refseq/full_utrs/raw_files/5utr_introns.bed ~/data/refgenomes/hg19/hg19_utr_refseq/full_utrs/parsed_files/parsed_5utr_introns.bed
+qsub -wd ~/code/bed_statistics/logs/ -N hg19_parse_3utr_exons ~/code/bed_statistics/parse_bedfile_chrs.sh ~/data/refgenomes/hg19/hg19_utr_refseq/full_utrs/raw_files/3utr_exons.bed ~/data/refgenomes/hg19/hg19_utr_refseq/full_utrs/parsed_files/parsed_3utr_exons.bed
+qsub -wd ~/code/bed_statistics/logs/ -N hg19_parse_3utr_introns ~/code/bed_statistics/parse_bedfile_chrs.sh ~/data/refgenomes/hg19/hg19_utr_refseq/full_utrs/raw_files/3utr_introns.bed ~/data/refgenomes/hg19/hg19_utr_refseq/full_utrs/parsed_files/parsed_3utr_introns.bed
+
+## now get the strands
+cd ../parsed_files/
+awk '{if ($6=="+") print $0}' parsed_5utr_exons.bed > ../pos_files/parsed_pos_5utr_exons.bed
+awk '{if ($6=="-") print $0}' parsed_5utr_exons.bed > ../neg_files/parsed_neg_5utr_exons.bed
+awk '{if ($6=="+") print $0}' parsed_5utr_introns.bed > ../pos_files/parsed_pos_5utr_introns.bed
+awk '{if ($6=="-") print $0}' parsed_5utr_introns.bed > ../neg_files/parsed_neg_5utr_introns.bed
+
+awk '{if ($6=="+") print $0}' parsed_3utr_exons.bed > ../pos_files/parsed_pos_3utr_exons.bed
+awk '{if ($6=="-") print $0}' parsed_3utr_exons.bed > ../neg_files/parsed_neg_3utr_exons.bed
+awk '{if ($6=="+") print $0}' parsed_3utr_introns.bed > ../pos_files/parsed_pos_3utr_introns.bed
+awk '{if ($6=="-") print $0}' parsed_3utr_introns.bed > ../neg_files/parsed_neg_3utr_introns.bed
+
+## now merge these
+qsub -wd ~/code/bed_statistics/logs/ -N merge_hg19_full_utrs ~/code/qsub_wrappers/python_wrapper.sh ~/code/bed_statistics/merge_bed_files.py ~/data/refgenomes/hg19/hg19_utr_refseq/full_utrs/pos_files/parsed_pos_5utr_exons.bed ~/data/refgenomes/hg19/hg19_utr_refseq/full_utrs/pos_files/parsed_pos_5utr_introns.bed ~/data/refgenomes/hg19/hg19_utr_refseq/full_utrs/pos_files/parsed_pos_3utr_exons.bed ~/data/refgenomes/hg19/hg19_utr_refseq/full_utrs/pos_files/parsed_pos_3utr_introns.bed ~/data/refgenomes/hg19/hg19_utr_refseq/full_utrs/neg_files/parsed_neg_5utr_exons.bed ~/data/refgenomes/hg19/hg19_utr_refseq/full_utrs/neg_files/parsed_neg_5utr_introns.bed ~/data/refgenomes/hg19/hg19_utr_refseq/full_utrs/neg_files/parsed_neg_3utr_exons.bed ~/data/refgenomes/hg19/hg19_utr_refseq/full_utrs/neg_files/parsed_neg_3utr_introns.bed
+
+## finally, generate exclusive elements
+qsub -wd ~/code/bed_statistics/logs/ -N get_hg19_full_utr_exclusive_elements ~/code/bed_statistics/get_hg19_full_utr_exclusive_elements.sh
