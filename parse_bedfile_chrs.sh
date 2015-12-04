@@ -1,4 +1,7 @@
-#!/usr/bin/bash
+#!/bin/bash
+
+## may need to tweak this
+#!/usr/bin/sh
 
 ## parse_bedfile_chrs.sh
 ## alex amlie-wolf 06-11-2015
@@ -7,7 +10,9 @@
 ## first argument is bed file, second is output
 
 if [ $# == 2 ]; then
-    grep "^chr[0-9XY]*[[:space:]]" $1 | awk 'BEGIN{OFS="\t"} {if($3 >= $2) print $0}' | sort -u -t$'\t' -T ~/data/tmp/ -k1,1 -k2,2n -k6,6 > $2
+    # grep "^chr[0-9XY]*[[:space:]]" $1 | awk 'BEGIN{OFS="\t"} {if($3 >= $2) print $0}' | sort -u -t$'\t' -T ~/data/tmp/ -k1,1 -k2,2n -k6,6 > $2
+    ## the above was incorrectly sorting!
+    grep "^chr[0-9XY]*[[:space:]]" $1 | awk 'BEGIN{OFS="\t"} {if($3 >= $2) print $0}' | sort -u -t$'\t' -k1,1V -k2,2n -k6,6 > $2
 else
     echo "Usage: $0 INPUT_BED OUTPUT_FILE"
 fi
