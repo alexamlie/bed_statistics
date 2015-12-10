@@ -53,10 +53,10 @@ if [ $# == 3 ]; then
 
 	## write the summary to file
 	~/code/bed_statistics/parse_split_utr_hierarchy.sh ${OUTDIR}/pos_${BED_NAME}_entry.txt \
-	    > tee ${OUTDIR}/pos_${BED_NAME}_parsed_hierarchy.txt
+	    > ${OUTDIR}/pos_${BED_NAME}_parsed_hierarchy.txt
 
 	~/code/bed_statistics/parse_split_utr_hierarchy.sh ${OUTDIR}/neg_${BED_NAME}_entry.txt \
-	    > tee ${OUTDIR}/neg_${BED_NAME}_parsed_hierarchy.txt
+	    > ${OUTDIR}/neg_${BED_NAME}_parsed_hierarchy.txt
     ## if we aren't stranded
     else
 	echo "Performing non-stranded analysis"
@@ -89,10 +89,10 @@ if [ $# == 3 ]; then
 
 	## write the summary to file
 	~/code/bed_statistics/parse_split_utr_hierarchy.sh ${OUTDIR}/pos_${BED_NAME}_entry.txt \
-	    > tee ${OUTDIR}/pos_${BED_NAME}_parsed_hierarchy.txt
+	    > ${OUTDIR}/pos_${BED_NAME}_parsed_hierarchy.txt
 
 	~/code/bed_statistics/parse_split_utr_hierarchy.sh ${OUTDIR}/neg_${BED_NAME}_entry.txt \
-	    > tee ${OUTDIR}/neg_${BED_NAME}_parsed_hierarchy.txt
+	    > ${OUTDIR}/neg_${BED_NAME}_parsed_hierarchy.txt
     fi
 else
     echo "Usage: $0 <input bed file> <output directory>"
