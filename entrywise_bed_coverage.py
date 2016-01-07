@@ -86,8 +86,8 @@ def compute_coverage(promoter_f, exon_f, intron_f, repeat_f, input_f, entrywise_
         entry_ctr = 0        
         for entry in input_beds:
             entry_ctr += 1
-            if entry_ctr % 1000==0:
-                print entry_ctr
+            # if entry_ctr % 1000==0:
+            #     print entry_ctr
             entry_data = entry.strip().split('\t')
             entry_start = int(entry_data[bed_coords['start']])
             entry_end = int(entry_data[bed_coords['end']])
@@ -286,8 +286,8 @@ def compute_full_utr_coverage(fp_utr_f, tp_utr_f, promoter_f, exon_f, intron_f, 
         entry_ctr = 0        
         for entry in input_beds:
             entry_ctr += 1
-            if entry_ctr % 1000==0:
-                print entry_ctr
+            # if entry_ctr % 1000==0:
+            #     print entry_ctr
             entry_data = entry.strip().split('\t')
             entry_start = int(entry_data[bed_coords['start']])
             entry_end = int(entry_data[bed_coords['end']])
@@ -529,8 +529,8 @@ def compute_split_utr_coverage(fp_utr_exons_f, fp_utr_introns_f, tp_utr_exons_f,
         entry_ctr = 0        
         for entry in input_beds:
             entry_ctr += 1
-            if entry_ctr % 1000==0:
-                print entry_ctr
+            # if entry_ctr % 1000==0:
+            #     print entry_ctr
             entry_data = entry.strip().split('\t')
             entry_start = int(entry_data[bed_coords['start']])
             entry_end = int(entry_data[bed_coords['end']])
